@@ -1,44 +1,23 @@
 const express = require("express");
 const app = express();
-const mongoose = require("mongoose");
 const port = 6606;
 require("dotenv").config();
 var cors = require("cors");
+const Repository = require("./repository");
+const repository = new Repository(process.env.CONNECTAPI);
 
 app.use(express.json()); // for parsing application/json
 app.use(express.urlencoded({ extended: true })); // for parsing application/x-www-form-urlencoded
 app.use(cors());
 
-mongoose
-  .connect(process.env.CONNECTAPI)
-  .then(() => console.log("connected to Mongoose!"));
-
-const productSchema = new mongoose.Schema({
-  name: String,
-  description: String,
-  date: Date,
-});
-
-const productModel = mongoose.model("products", productSchema);
-
 app.post("/products", (req, res) => {
   console.log("console", req.body);
-
-  const newProductSchema = new productModel({
-    name: req.body.name,
-    description: req.body.description,
-    date: new Date(),
-  });
-
-  newProductSchema.save((err, doc) => {
-    console.log("err", err);
-    console.log("doc", doc);
-  });
+  repository.newProduct(req.body.name, req.body.description);
   res.send("data created", 201);
 });
 
 app.get("/products", (req, res) => {
-  productModel.find().then((r) =>
+  repository.allProducts().then((r) => {
     res.send(
       r.map((q) => {
         return {
@@ -48,23 +27,23 @@ app.get("/products", (req, res) => {
           date: q.date,
         };
       })
-    )
-  );
+    );
+  });
 });
 
 app.get("/products/:id", (req, res) => {
-  productModel.findById(req.params.id).then((r) =>
+  repository.productById(req.params.id).then((r) => {
     res.send({
       id: r._id,
       name: r.name,
       description: r.description,
       date: r.date,
-    })
-  );
+    });
+  });
 });
 
 app.put("/products/:id", async (req, res) => {
-  let p = await productModel.findById(req.params.id);
+  let p = await repository.productById(req.params.id);
   p.name = req.body.name ? req.body.name : p.name;
   p.description = req.body.description ? req.body.description : p.description;
   p.date = req.body.date ? req.body.date : p.date;
@@ -78,7 +57,7 @@ app.put("/products/:id", async (req, res) => {
 });
 
 app.delete("/products/:id", async (req, res) => {
-  await productModel.findByIdAndDelete(req.params.id);
+  await repository.deleteProductById(req.params.id);
   res.send("", 204);
 });
 
